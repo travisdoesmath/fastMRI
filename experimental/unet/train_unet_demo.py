@@ -1,3 +1,10 @@
+"""
+Copyright (c) Facebook, Inc. and its affiliates.
+
+This source code is licensed under the MIT license found in the
+LICENSE file in the root directory of this source tree.
+"""
+
 import pathlib
 import sys
 from argparse import ArgumentParser
@@ -6,6 +13,7 @@ from pytorch_lightning import Trainer
 
 sys.path.append("../../")  # noqa: E402
 
+from fastmri.data.mri_data import fetch_dir
 from unet_module import UnetModule
 
 
@@ -22,18 +30,25 @@ def main(args):
     trainer = Trainer.from_argparse_args(args)
 
     # ------------------------
-    # 3 START TRAINING
+    # 3 START TRAINING OR TEST
     # ------------------------
-    trainer.fit(model)
+    if args.mode == "train":
+        trainer.fit(model)
+    elif args.mode == "test":
+        assert args.resume_from_checkpoint is not None
+        trainer.test(model)
+    else:
+        raise ValueError(f"unrecognized mode {args.mode}")
 
 
 def build_args():
     # ------------------------
     # TRAINING ARGUMENTS
     # ------------------------
-    # this assumes data is stored in a folder parallel to the code repository
-    knee_path = pathlib.Path.cwd() / "../../../datasets/knee_data"
-    logdir = pathlib.Path.cwd() / "../../../logs/unet/unet_demo"
+    path_config = pathlib.Path.cwd() / ".." / ".." / "fastmri_dirs.yaml"
+    knee_path = fetch_dir("knee_path", path_config)
+    logdir = fetch_dir("log_path", path_config) / "unet" / "unet_demo"
+
     parent_parser = ArgumentParser(add_help=False)
 
     parser = UnetModule.add_model_specific_args(parent_parser)
@@ -41,7 +56,7 @@ def build_args():
 
     num_gpus = 2
     backend = "ddp"
-    batch_size = 1 if backend == "dp" else num_gpus
+    batch_size = 1 if backend == "ddp" else num_gpus
 
     config = dict(
         in_chans=1,
@@ -61,6 +76,7 @@ def build_args():
         challenge="singlecoil",
         exp_dir=logdir,
         exp_name="unet_demo",
+        test_split="test",
         batch_size=batch_size,
     )
     parser.set_defaults(**config)
@@ -71,6 +87,8 @@ def build_args():
         replace_sampler_ddp=(backend != "ddp"),
         distributed_backend=backend,
     )
+
+    parser.add_argument("--mode", default="train", type=str)
 
     args = parser.parse_args()
 
