@@ -59,6 +59,7 @@ def build_args():
     num_gpus = 2 if backend == "ddp" else 1
     batch_size = 1
 
+    # module config
     config = dict(
         num_cascades=8,
         pools=4,
@@ -68,7 +69,6 @@ def build_args():
         mask_type="equispaced",
         center_fractions=[0.08],
         accelerations=[4],
-        resolution=384,
         lr=0.001,
         lr_step_size=40,
         lr_gamma=0.1,
@@ -82,11 +82,13 @@ def build_args():
     )
     parser.set_defaults(**config)
 
+    # trainer config
     parser.set_defaults(
         gpus=num_gpus,
         default_root_dir=logdir,
         replace_sampler_ddp=(backend != "ddp"),
         distributed_backend=backend,
+        seed=42,
         deterministic=True,
     )
 
