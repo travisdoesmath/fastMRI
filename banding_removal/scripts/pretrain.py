@@ -14,7 +14,7 @@ from fastmri import run, spawn_dist
 
 config = {
     'run_name': pathlib.Path(__file__).stem,
-    'data_path': '/datasets01_101/fastMRI/112718',
+    'data_path': '/datasets01/fastMRI/112718',
     'trainer_class': 'fastmri.var_net.var_net_trainer.VarNetTrainer',
     'architecture': 'var_net.var_net',
     'data_transform': 'kspace.KSpaceDataTransform',
@@ -30,6 +30,8 @@ config = {
     'batch_size': 1,
     'method': 'adam',
     'lr': 0.0003,
+
+    'calculate_offsets_directly': True,
 
     'workers': 8,
 
@@ -63,5 +65,4 @@ config = {
 }
 
 if __name__ == "__main__":
-    #spawn_dist.run(config) # Multiple GPU training (8 recommended)
-    run.run(config) # Single GPU training (for debugging)
+    spawn_dist.run(config) # Multiple GPU training (8 recommended)
