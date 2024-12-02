@@ -46,6 +46,7 @@ def cli_main(args):
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         distributed_sampler=(args.accelerations in ("ddp", "ddp_cpu")),
+        repo_id=args.repo_id,
     )
 
     # ------------
@@ -99,6 +100,13 @@ def build_args():
         "--mode",
         default="train",
         choices=("train", "test"),
+        type=str,
+        help="Operation mode",
+    )
+    parser.add_argument(
+        "--repo_id",
+        default=None,
+        choices=("btoto3/fastmri-dl"),
         type=str,
         help="Operation mode",
     )
