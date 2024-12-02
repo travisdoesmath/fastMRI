@@ -215,6 +215,8 @@ class CombinedSliceDataset(torch.utils.data.Dataset):
             else:
                 i = i - len(dataset)
 
+def always_true(raw_sample):
+    return True
 
 class SliceDataset(torch.utils.data.Dataset):
     """
@@ -232,7 +234,8 @@ class SliceDataset(torch.utils.data.Dataset):
         dataset_cache_file: Union[str, Path, os.PathLike] = "dataset_cache.pkl",
         num_cols: Optional[Tuple[int]] = None,
         raw_sample_filter: Optional[Callable] = None,
-        repo_id: str = None
+        repo_id: str = None,
+        max_len: int = None
     ):
         """
         Args:
@@ -261,6 +264,8 @@ class SliceDataset(torch.utils.data.Dataset):
                 metadata as input and returns a boolean indicating whether the
                 raw_sample should be included in the dataset.
             repo_id: repo for hf if using it
+            max_len: adding a max length to cut off files for quick testing, only available with HF data
+                e.g if max_len = 3, only 3 files will be used
         """
         if challenge not in ("singlecoil", "multicoil"):
             raise ValueError('challenge should be either "singlecoil" or "multicoil"')
@@ -278,7 +283,7 @@ class SliceDataset(torch.utils.data.Dataset):
         )
         self.raw_samples = []
         if raw_sample_filter is None:
-            self.raw_sample_filter = lambda raw_sample: True
+            self.raw_sample_filter =  always_true #lambda raw_sample: True
         else:
             self.raw_sample_filter = raw_sample_filter
 
@@ -298,6 +303,7 @@ class SliceDataset(torch.utils.data.Dataset):
         # check if our dataset is in the cache
         # if there, use that metadata, if not, then regenerate the metadata
         self.repo_id = repo_id
+        self.max_len = max_len
         if self.repo_id is None:
             if dataset_cache.get(root) is None or not use_dataset_cache:
                 files = list(Path(root).iterdir())
@@ -328,6 +334,9 @@ class SliceDataset(torch.utils.data.Dataset):
                 for line in f:
                     fname = f'{root}/{line.strip()}'
                     files.append(fname)
+
+            if self.max_len:
+                files = files[:self.max_len]
             for fname in sorted(files):
                 metadata, num_slices = self._retrieve_metadata(fname)
 
@@ -412,6 +421,9 @@ class SliceDataset(torch.utils.data.Dataset):
             fname = hf_hub_download(repo_id=self.repo_id, 
                                     filename=fname, 
                                     repo_type="dataset")
+            transform_fname = fname
+        else:
+            transform_fname = fname.name
 
         with h5py.File(fname, "r") as hf:
             kspace = hf["kspace"][dataslice]
@@ -423,10 +435,11 @@ class SliceDataset(torch.utils.data.Dataset):
             attrs = dict(hf.attrs)
             attrs.update(metadata)
 
+        
         if self.transform is None:
-            sample = (kspace, mask, target, attrs, fname.name, dataslice)
+            sample = (kspace, mask, target, attrs, transform_fname, dataslice)
         else:
-            sample = self.transform(kspace, mask, target, attrs, fname.name, dataslice)
+            sample = self.transform(kspace, mask, target, attrs, transform_fname, dataslice)
 
         return sample
 

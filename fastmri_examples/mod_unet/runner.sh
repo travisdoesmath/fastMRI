@@ -8,14 +8,17 @@ pretrain_inference_flag=false
 eval_mod_model=false
 eval_pretrained_model=false
 repo_id="btoto3/fastmri-dl"
+max_len=""
 
 
 # Default parameters
 challenge="singlecoil"
 data_path="/path/to/knee"
-output_path="./output"
+output_path_pretrain="output_pretrain/"
+output_path_mod="output_mod/"
 mask_type="random"
 pretrain_challenge="unet_knee_sc"
+max_epochs=50
 
 # Function to display help message
 function display_help {
@@ -25,7 +28,8 @@ function display_help {
     echo "  --data_path PATH          Path to the dataset (default: /path/to/knee)"
     echo "  --mask_type TYPE          Mask type for training/testing (default: random)"
     echo "  --challenge TYPE          Challenge type: singlecoil or multicoil (default: singlecoil)"
-    echo "  --output_path PATH        Path to save outputs (default: ./output)"
+    echo "  --output_path_pretrain PATH        Path to save pretrain outputs (default: output_pretrain/)"
+    echo "  --output_path_mod PATH        Path to save mod outputs (default: output_mod/)"
     echo "  -train-mod                Train the modified U-Net model"
     echo "  -test-mod                 Test the modified U-Net model"
     echo "  -eval-mod                 Evaluate the modified U-Net model"
@@ -34,6 +38,8 @@ function display_help {
     echo "  -full-mod                 Run the full modified model pipeline"
     echo "  -full-pretrained          Run the full pretrained model pipeline"
     echo "  -use_hf                  Use Hugging Face for data and not local"
+    echo " --max_len INT                 Maximum length of the input sequence, only applicable to hf for quick testing"
+    echo " --max_epochs INT              Maximum number of epochs to train the model (default: 50)"
     echo "  --help                    Display this help message and exit"
     echo
     echo "Examples:"
@@ -56,9 +62,18 @@ while [ $# -gt 0 ]; do
     --challenge)
         echo "Challenge set to: $2"
         challenge=$2; shift;;
-    --output_path)
+    --output_path_pretrain)
         echo "Output Path set to: $2"
-        output_path=$2; shift;;
+        output_path_pretrain=$2; shift;;
+    --output_path_mod)
+        echo "Output Path set to: $2"
+        output_path_mod=$2; shift;;
+    --max_len)
+        echo "Max Len set to: $2"
+        max_len=$2; shift;;
+    --max_epochs)
+        echo "Max Epochs set to: $2"
+        max_epochs=$2; shift;;
     -train-mod)
         echo "Train modified model flag set"
         train_mod_flag=true;;
@@ -98,9 +113,15 @@ if [ "$train_mod_flag" = true ]; then
     echo "Training modified U-Net model..."
     if [ "$use_hf_flag" = true ]; then
         echo "Using Hugging Face Transformers library"
-        python mod_train_unet.py --challenge "$challenge" --data_path "$data_path" --mask_type "$mask_type" --repo_id "$repo_id"
+        if [ -z "$max_len" ]; then
+            python mod_train_unet.py --challenge "$challenge" --data_path "$data_path" --mask_type "$mask_type" --repo_id "$repo_id" --max_epochs "$max_epochs"
+        else
+            echo "Using a max_len of $max_len"
+            python mod_train_unet.py --challenge "$challenge" --data_path "$data_path" --mask_type "$mask_type" --repo_id "$repo_id" --max_len "$max_len" --max_epochs "$max_epochs"
+        fi
+       
     else
-        python mod_train_unet.py --challenge "$challenge" --data_path "$data_path" --mask_type "$mask_type"
+        python mod_train_unet.py --challenge "$challenge" --data_path "$data_path" --mask_type "$mask_type" --max_epochs "$max_epochs"
     fi
     if [ $? -ne 0 ]; then
         echo "Error: Training modified model failed."
@@ -131,7 +152,19 @@ fi
 # Run pretrained inference
 if [ "$pretrain_inference_flag" = true ]; then
     echo "Running inference on pretrained U-Net model..."
-    python run_pretrained_unet_inference.py --data_path "$data_path" --output_path "$output_path" --challenge "$pretrain_challenge"
+    # Check to make sure the output directory exists
+    if [ "$use_hf_flag" = true ]; then
+        echo "Using Hugging Face Transformers library"
+        if [ -z "$max_len" ]; then
+            python run_pretrained_unet_inference.py --data_path "$data_path" --output_path "$output_path_pretrain" --challenge "$pretrain_challenge" --repo_id "$repo_id"
+        else
+            echo "Using a max_len of $max_len"
+            python run_pretrained_unet_inference.py --data_path "$data_path" --output_path "$output_path_pretrain" --challenge "$pretrain_challenge" --repo_id "$repo_id" --max_len "$max_len"
+        fi
+        
+    else
+        python run_pretrained_unet_inference.py --data_path "$data_path" --output_path "$output_path_pretrain" --challenge "$pretrain_challenge"
+    fi
     if [ $? -ne 0 ]; then
         echo "Error: Pretrained inference failed."
         exit 1
