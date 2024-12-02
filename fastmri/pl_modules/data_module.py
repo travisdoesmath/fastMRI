@@ -106,7 +106,8 @@ class FastMriDataModule(pl.LightningDataModule):
         batch_size: int = 1,
         num_workers: int = 4,
         distributed_sampler: bool = False,
-        repo_id: str = None
+        repo_id: str = None,
+        max_len: int = None,
     ):
         """
         Args:
@@ -185,6 +186,7 @@ class FastMriDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.distributed_sampler = distributed_sampler
         self.repo_id = repo_id
+        self.max_len = max_len
 
     def _create_data_loader(
         self,
@@ -286,6 +288,7 @@ class FastMriDataModule(pl.LightningDataModule):
                     use_dataset_cache=self.use_dataset_cache_file,
                     raw_sample_filter=raw_sample_filter,
                     repo_id=self.repo_id,
+                    max_len=self.max_len,
                 )
             else:
                 
@@ -304,6 +307,7 @@ class FastMriDataModule(pl.LightningDataModule):
                     use_dataset_cache=self.use_dataset_cache_file,
                     raw_sample_filter=raw_sample_filter,
                     repo_id=self.repo_id,
+                    max_len=self.max_len,
                 )
 
 
@@ -367,6 +371,7 @@ class FastMriDataModule(pl.LightningDataModule):
                     challenge=self.challenge,
                     use_dataset_cache=self.use_dataset_cache_file,
                     repo_id = self.repo_id,
+                    max_len = self.max_len,
                 )
 
     def train_dataloader(self):
