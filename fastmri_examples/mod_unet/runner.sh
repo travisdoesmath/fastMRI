@@ -132,7 +132,28 @@ fi
 # Test modified model
 if [ "$test_mod_flag" = true ]; then
     echo "Testing modified U-Net model..."
-    python mod_train_unet.py --mode test --challenge "$challenge" --data_path "$data_path" 
+    if [ "$use_hf_flag" = true ]; then
+        echo "Using Hugging Face Transformers library"
+        if [ -z "$max_len" ]; then
+            python mod_train_unet.py --mode test --challenge "$challenge" --data_path "$data_path" --repo_id "$repo_id"
+        else
+            echo "Using a max_len of $max_len"
+            python mod_train_unet.py --mode test --challenge "$challenge" --data_path "$data_path" --repo_id "$repo_id" --max_len "$max_len"
+        fi
+        
+    else
+        python mod_train_unet.py --mode test --challenge "$challenge" --data_path "$data_path"
+    fi
+
+    # Make sure output_path_mod exists
+    if [ ! -d "$output_path_mod" ]; then
+        mkdir "$output_path_mod"
+    fi
+
+    # If the directory saves in the wrong place, move it to the correct location
+    if [ -d "reconstructions" ]; then
+        mv reconstructions "$output_path_mod"
+    fi
     if [ $? -ne 0 ]; then
         echo "Error: Testing modified model failed."
         exit 1
@@ -142,7 +163,18 @@ fi
 # Evaluate modified model
 if [ "$eval_mod_model" = true ]; then
     echo "Evaluating modified U-Net model..."
-    python evaluate.py --target-path "$data_path/ground_truth" --predictions-path "$output_path/reconstructions" --challenge "$challenge"
+    if [ "$use_hf_flag" = true ]; then
+        echo "Using Hugging Face Transformers library"
+        if [ -z "$max_len" ]; then
+            python evaluate.py --target-path "$data_path/ground_truth" --predictions-path "$output_path_mod/reconstructions" --challenge "$challenge" --repo_id "$repo_id"
+        else
+            echo "Using a max_len of $max_len"
+            python evaluate.py --target-path "$data_path/ground_truth" --predictions-path "$output_path_mod/reconstructions" --challenge "$challenge" --repo_id "$repo_id" --max_len "$max_len"
+        fi
+    else
+        python evaluate.py --target-path "$data_path/singlecoil_val" --predictions-path "$output_path_mod/reconstructions" --challenge "$challenge"
+    fi
+    
     if [ $? -ne 0 ]; then
         echo "Error: Evaluation of modified model failed."
         exit 1
@@ -174,8 +206,18 @@ fi
 # Evaluate pretrained model
 if [ "$eval_pretrained_model" = true ]; then
     echo "Evaluating pretrained U-Net model..."
-    cd ../
-    python fastmri/evaluate.py --target-path "$data_path/ground_truth" --predictions-path "$output_path/reconstructions" --challenge "$challenge"
+    if [ "$use_hf_flag" = true ]; then
+        echo "Using Hugging Face Transformers library"
+        if [ -z "$max_len" ]; then
+            python evaluate.py --target-path "$data_path/ground_truth" --predictions-path "$output_path_pretrain/reconstructions" --challenge "$challenge" --repo_id "$repo_id"
+        else
+            echo "Using a max_len of $max_len"
+            python evaluate.py --target-path "$data_path/ground_truth" --predictions-path "$output_path_pretrain/reconstructions" --challenge "$challenge" --repo_id "$repo_id" --max_len "$max_len"
+        fi
+        
+    else
+        python evaluate.py --target-path "$data_path/ground_truth" --predictions-path "$output_path_pretrain/reconstructions" --challenge "$challenge"
+    fi
     if [ $? -ne 0 ]; then
         echo "Error: Evaluation of pretrained model failed."
         exit 1
