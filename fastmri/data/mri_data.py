@@ -376,7 +376,9 @@ class SliceDataset(torch.utils.data.Dataset):
             fname = hf_hub_download(repo_id=self.repo_id, 
                                     filename=fname, 
                                     repo_type="dataset")
+          
         with h5py.File(fname, "r") as hf:
+            #print(hf.keys())
             et_root = etree.fromstring(hf["ismrmrd_header"][()])
 
             enc = ["encoding", "encodedSpace", "matrixSize"]
@@ -421,7 +423,7 @@ class SliceDataset(torch.utils.data.Dataset):
             fname = hf_hub_download(repo_id=self.repo_id, 
                                     filename=fname, 
                                     repo_type="dataset")
-            transform_fname = fname
+            transform_fname = Path(fname).name
         else:
             transform_fname = fname.name
 

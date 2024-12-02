@@ -63,6 +63,7 @@ def run_unet_model(batch, model, device):
 
 def run_inference(challenge, state_dict_file, data_path, output_path, device, repo_id, max_len):
     model = Unet(in_chans=1, out_chans=1, chans=256, num_pool_layers=4, drop_prob=0.0)
+    
     # download the state_dict if we don't have it
     if state_dict_file is None or not state_dict_file.exists():
         if not Path(MODEL_FNAMES[challenge]).exists():
@@ -82,7 +83,7 @@ def run_inference(challenge, state_dict_file, data_path, output_path, device, re
 
     if repo_id is not None:
         # Data is stored in huggingface
-        data_path = "singlecoil_val"
+        data_path = "singlecoil_test"
 
     if "_mc" in challenge:
         dataset = SliceDataset(
@@ -108,6 +109,8 @@ def run_inference(challenge, state_dict_file, data_path, output_path, device, re
     for batch in tqdm(dataloader, desc="Running inference"):
         with torch.no_grad():
             output, slice_num, fname = run_unet_model(batch, model, device)
+            # update fname to extract the filename from the full path
+            fname = Path(fname).name
 
         outputs[fname].append((slice_num, output))
 
@@ -117,7 +120,8 @@ def run_inference(challenge, state_dict_file, data_path, output_path, device, re
 
 
     #make sure the output dirs exist
-    
+ 
+    os.makedirs(output_path / "reconstructions", exist_ok=True)
     fastmri.save_reconstructions(outputs, output_path / "reconstructions")
 
     end_time = time.perf_counter()
