@@ -17,6 +17,7 @@ from runstats import Statistics
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
 from fastmri.data import transforms
+import fastmri
 
 
 def mse(gt: np.ndarray, pred: np.ndarray) -> np.ndarray:
@@ -81,7 +82,11 @@ class Metrics:
 
     def push(self, target, recons):
         for metric, func in METRIC_FUNCS.items():
-            self.metrics[metric].push(func(target, recons))
+            value = func(target,recons)
+            if isinstance(value, np.ndarray):  # Ensure we push scalars
+                value = value.item()
+            self.metrics[metric].push(value)
+            
 
     def means(self):
         return {metric: stat.mean() for metric, stat in self.metrics.items()}
@@ -101,6 +106,7 @@ class Metrics:
 
 def evaluate(args, recons_key):
     metrics = Metrics(METRIC_FUNCS)
+    txt_filepath=""
     if args.repo_id is None:
         pred_files = args.target_path.iterdir()
     else:
@@ -120,9 +126,11 @@ def evaluate(args, recons_key):
             tgt_file = args.target_path / tgt_file
             recon_file = args.predictions_path / tgt_file.name
         else:
+            
             tgt_file = hf_hub_download(repo_id=args.repo_id, filename=tgt_file, repo_type="dataset")
             t_name = pathlib.Path(tgt_file).name
             recon_file = args.predictions_path / t_name
+            
         with h5py.File(tgt_file, "r") as target, h5py.File(
             recon_file, "r"
         ) as recons:
@@ -131,17 +139,28 @@ def evaluate(args, recons_key):
 
             if args.acceleration and target.attrs["acceleration"] != args.acceleration:
                 continue
+            
 
-            target = target[recons_key][()]
-            recons = recons["reconstruction"][()]
-            target = transforms.center_crop(
+            if args.repo_id is not None and 'test' in txt_filepath:
+                target = fastmri.ifft2c(transforms.to_tensor(target["kspace"][()]))
+                target = transforms.complex_center_crop(target, (320, 320))
+                target = fastmri.complex_abs(target)
+                target, _, _= transforms.normalize_instance(target, eps=1e-11)
+                target = target.clamp(-6, 6)
+                target= target.cpu().numpy()
+            elif (args.repo_id is not None and "val" in txt_filepath) or args.repo_id is None:
+                target = target[recons_key][()]
+                target = transforms.center_crop(
                 target, (target.shape[-1], target.shape[-1])
             )
+           
+            recons = recons["reconstruction"][()]
             recons = transforms.center_crop(
                 recons, (target.shape[-1], target.shape[-1])
             )
+            recons = recons.squeeze()
             metrics.push(target, recons)
-   
+            
     return metrics
 
 

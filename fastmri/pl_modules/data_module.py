@@ -106,6 +106,8 @@ class FastMriDataModule(pl.LightningDataModule):
         batch_size: int = 1,
         num_workers: int = 4,
         distributed_sampler: bool = False,
+        repo_id: str = None,
+        max_len: int = None,
     ):
         """
         Args:
@@ -183,6 +185,8 @@ class FastMriDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.distributed_sampler = distributed_sampler
+        self.repo_id = repo_id
+        self.max_len = max_len
 
     def _create_data_loader(
         self,
@@ -225,42 +229,87 @@ class FastMriDataModule(pl.LightningDataModule):
 
         # if desired, combine train and val together for the train split
         dataset: Union[SliceDataset, CombinedSliceDataset]
-        if is_train and self.combine_train_val:
-            data_paths = [
-                self.data_path / f"{self.challenge}_train",
-                self.data_path / f"{self.challenge}_val",
-            ]
-            data_transforms = [data_transform, data_transform]
-            challenges = [self.challenge, self.challenge]
-            sample_rates, volume_sample_rates = None, None  # default: no subsampling
-            if sample_rate is not None:
-                sample_rates = [sample_rate, sample_rate]
-            if volume_sample_rate is not None:
-                volume_sample_rates = [volume_sample_rate, volume_sample_rate]
-            dataset = CombinedSliceDataset(
-                roots=data_paths,
-                transforms=data_transforms,
-                challenges=challenges,
-                sample_rates=sample_rates,
-                volume_sample_rates=volume_sample_rates,
-                use_dataset_cache=self.use_dataset_cache_file,
-                raw_sample_filter=raw_sample_filter,
-            )
-        else:
-            if data_partition in ("test", "challenge") and self.test_path is not None:
-                data_path = self.test_path
+        if self.repo_id is None:
+            if is_train and self.combine_train_val:
+                data_paths = [
+                    self.data_path / f"{self.challenge}_train",
+                    self.data_path / f"{self.challenge}_val",
+                ]
+                data_transforms = [data_transform, data_transform]
+                challenges = [self.challenge, self.challenge]
+                sample_rates, volume_sample_rates = None, None  # default: no subsampling
+                if sample_rate is not None:
+                    sample_rates = [sample_rate, sample_rate]
+                if volume_sample_rate is not None:
+                    volume_sample_rates = [volume_sample_rate, volume_sample_rate]
+                dataset = CombinedSliceDataset(
+                    roots=data_paths,
+                    transforms=data_transforms,
+                    challenges=challenges,
+                    sample_rates=sample_rates,
+                    volume_sample_rates=volume_sample_rates,
+                    use_dataset_cache=self.use_dataset_cache_file,
+                    raw_sample_filter=raw_sample_filter,
+                )
             else:
-                data_path = self.data_path / f"{self.challenge}_{data_partition}"
+                if data_partition in ("test", "challenge") and self.test_path is not None:
+                    data_path = self.test_path
+                else:
+                    data_path = self.data_path / f"{self.challenge}_{data_partition}"
 
-            dataset = SliceDataset(
-                root=data_path,
-                transform=data_transform,
-                sample_rate=sample_rate,
-                volume_sample_rate=volume_sample_rate,
-                challenge=self.challenge,
-                use_dataset_cache=self.use_dataset_cache_file,
-                raw_sample_filter=raw_sample_filter,
-            )
+                dataset = SliceDataset(
+                    root=data_path,
+                    transform=data_transform,
+                    sample_rate=sample_rate,
+                    volume_sample_rate=volume_sample_rate,
+                    challenge=self.challenge,
+                    use_dataset_cache=self.use_dataset_cache_file,
+                    raw_sample_filter=raw_sample_filter,
+                )
+        else:
+            if is_train and self.combine_train_val:
+                data_paths = [
+                    f"{self.challenge}_train",
+                    f"{self.challenge}_val",
+                ]
+                data_transforms = [data_transform, data_transform]
+                challenges = [self.challenge, self.challenge]
+                sample_rates, volume_sample_rates = None, None  # default: no subsampling
+                if sample_rate is not None:
+                    sample_rates = [sample_rate, sample_rate]
+                if volume_sample_rate is not None:
+                    volume_sample_rates = [volume_sample_rate, volume_sample_rate]
+                dataset = CombinedSliceDataset(
+                    roots=data_paths,
+                    transforms=data_transforms,
+                    challenges=challenges,
+                    sample_rates=sample_rates,
+                    volume_sample_rates=volume_sample_rates,
+                    use_dataset_cache=self.use_dataset_cache_file,
+                    raw_sample_filter=raw_sample_filter,
+                    repo_id=self.repo_id,
+                    max_len=self.max_len,
+                )
+            else:
+                
+                data_path = f"{self.challenge}_{data_partition}"
+                # if  data_partition in ("test", "challenge") and self.test_path is not None:
+                #     data_path = self.test_path
+                # else:
+                #     data_path = self.data_path / f"{self.challenge}_{data_partition}"
+
+                dataset = SliceDataset(
+                    root=data_path,
+                    transform=data_transform,
+                    sample_rate=sample_rate,
+                    volume_sample_rate=volume_sample_rate,
+                    challenge=self.challenge,
+                    use_dataset_cache=self.use_dataset_cache_file,
+                    raw_sample_filter=raw_sample_filter,
+                    repo_id=self.repo_id,
+                    max_len=self.max_len,
+                )
+
 
         # ensure that entire volumes go to the same GPU in the ddp setting
         sampler = None
@@ -290,11 +339,19 @@ class FastMriDataModule(pl.LightningDataModule):
                 test_path = self.test_path
             else:
                 test_path = self.data_path / f"{self.challenge}_test"
-            data_paths = [
-                self.data_path / f"{self.challenge}_train",
-                self.data_path / f"{self.challenge}_val",
-                test_path,
-            ]
+
+            if self.repo_id is None:
+                data_paths = [
+                    self.data_path / f"{self.challenge}_train",
+                    self.data_path / f"{self.challenge}_val",
+                    test_path,
+                ]
+            else:
+                data_paths = [
+                    f"{self.challenge}_train",
+                    f"{self.challenge}_val",
+                   f"{self.challenge}_val",
+                ]
             data_transforms = [
                 self.train_transform,
                 self.val_transform,
@@ -313,6 +370,8 @@ class FastMriDataModule(pl.LightningDataModule):
                     volume_sample_rate=volume_sample_rate,
                     challenge=self.challenge,
                     use_dataset_cache=self.use_dataset_cache_file,
+                    repo_id = self.repo_id,
+                    max_len = self.max_len,
                 )
 
     def train_dataloader(self):

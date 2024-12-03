@@ -17,6 +17,8 @@ from fastmri.data.transforms import UnetDataTransform
 from fastmri.pl_modules import FastMriDataModule
 from fastmri.pl_modules.mod_unet_module import ModUnetModule
 from pathlib import Path
+from pytorch_lightning.loggers import TensorBoardLogger
+
 
 def cli_main(args):
     pl.seed_everything(args.seed)
@@ -46,6 +48,8 @@ def cli_main(args):
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         distributed_sampler=(args.accelerations in ("ddp", "ddp_cpu")),
+        repo_id=args.repo_id,
+        max_len=args.max_len,
     )
 
     # ------------
@@ -68,7 +72,7 @@ def cli_main(args):
     # ------------
     #trainer = pl.Trainer.from_argparse_args(args)
     #trainer = pl.Trainer(**vars(args))
-    trainer = pl.Trainer()
+    trainer = pl.Trainer(max_epochs=args.max_epochs, logger=TensorBoardLogger("logs", name="unet-mod"))
 
     # ------------
     # run
@@ -102,7 +106,25 @@ def build_args():
         type=str,
         help="Operation mode",
     )
-
+    parser.add_argument(
+        "--repo_id",
+        default=None,
+        choices=("btoto3/fastmri-dl"),
+        type=str,
+        help="Operation mode",
+    )
+    parser.add_argument(
+        "--max_len",
+        default=None,
+        type=int,
+        help="Maximum length of input images with hf data for quick debugging",
+    )
+    parser.add_argument(
+        "--max_epochs",
+        default=50,
+        type=int,
+        help="Maximum epochs to train",
+    )
     # data transform params
     parser.add_argument(
         "--mask_type",

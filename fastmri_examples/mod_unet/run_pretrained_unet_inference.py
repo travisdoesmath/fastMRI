@@ -19,6 +19,7 @@ import fastmri
 import fastmri.data.transforms as T
 from fastmri.data import SliceDataset
 from fastmri.models import Unet
+import os
 
 UNET_FOLDER = "https://dl.fbaipublicfiles.com/fastMRI/trained_models/unet/"
 MODEL_FNAMES = {
@@ -60,17 +61,18 @@ def run_unet_model(batch, model, device):
     return output, int(slice_num[0]), fname[0]
 
 
-def run_inference(challenge, state_dict_file, data_path, output_path, device):
+def run_inference(challenge, state_dict_file, data_path, output_path, device, repo_id, max_len):
     model = Unet(in_chans=1, out_chans=1, chans=256, num_pool_layers=4, drop_prob=0.0)
+    
     # download the state_dict if we don't have it
-    if state_dict_file is None:
+    if state_dict_file is None or not state_dict_file.exists():
         if not Path(MODEL_FNAMES[challenge]).exists():
             url_root = UNET_FOLDER
             download_model(url_root + MODEL_FNAMES[challenge], MODEL_FNAMES[challenge])
 
         state_dict_file = MODEL_FNAMES[challenge]
 
-    model.load_state_dict(torch.load(state_dict_file))
+    model.load_state_dict(torch.load(state_dict_file, weights_only=True, map_location=device))
     model = model.eval()
 
     # data loader setup
@@ -78,6 +80,10 @@ def run_inference(challenge, state_dict_file, data_path, output_path, device):
         data_transform = T.UnetDataTransform(which_challenge="multicoil")
     else:
         data_transform = T.UnetDataTransform(which_challenge="singlecoil")
+
+    if repo_id is not None:
+        # Data is stored in huggingface
+        data_path = "singlecoil_test"
 
     if "_mc" in challenge:
         dataset = SliceDataset(
@@ -90,6 +96,8 @@ def run_inference(challenge, state_dict_file, data_path, output_path, device):
             root=data_path,
             transform=data_transform,
             challenge="singlecoil",
+            repo_id=repo_id,
+            max_len=max_len
         )
     dataloader = torch.utils.data.DataLoader(dataset, num_workers=4)
 
@@ -101,6 +109,8 @@ def run_inference(challenge, state_dict_file, data_path, output_path, device):
     for batch in tqdm(dataloader, desc="Running inference"):
         with torch.no_grad():
             output, slice_num, fname = run_unet_model(batch, model, device)
+            # update fname to extract the filename from the full path
+            fname = Path(fname).name
 
         outputs[fname].append((slice_num, output))
 
@@ -108,6 +118,10 @@ def run_inference(challenge, state_dict_file, data_path, output_path, device):
     for fname in outputs:
         outputs[fname] = np.stack([out for _, out in sorted(outputs[fname])])
 
+
+    #make sure the output dirs exist
+ 
+    os.makedirs(output_path / "reconstructions", exist_ok=True)
     fastmri.save_reconstructions(outputs, output_path / "reconstructions")
 
     end_time = time.perf_counter()
@@ -130,15 +144,17 @@ if __name__ == "__main__":
         type=str,
         help="Model to run",
     )
+    check_device = "cuda" if torch.cuda.is_available() else "cpu"
+
     parser.add_argument(
         "--device",
-        default="cuda",
+        default=check_device,
         type=str,
         help="Model to run",
     )
     parser.add_argument(
         "--state_dict_file",
-        default=None,
+        default=Path('knee_sc_leaderboard_state_dict.pt'),
         type=Path,
         help="Path to saved state_dict (will download if not provided)",
     )
@@ -154,6 +170,18 @@ if __name__ == "__main__":
         required=True,
         help="Path for saving reconstructions",
     )
+    parser.add_argument(
+        "--repo_id",
+        default=None,
+        type=str,
+        help="Repo ID to use huggingface data",
+    )
+    parser.add_argument(
+        "--max_len",
+        default=None,
+        type=int,
+        help="Maximum length of input images with hf data for quick debugging",
+    )
 
     args = parser.parse_args()
 
@@ -163,4 +191,6 @@ if __name__ == "__main__":
         args.data_path,
         args.output_path,
         torch.device(args.device),
+        args.repo_id,
+        args.max_len
     )

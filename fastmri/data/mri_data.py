@@ -4,7 +4,7 @@ Copyright (c) Facebook, Inc. and its affiliates.
 This source code is licensed under the MIT license found in the
 LICENSE file in the root directory of this source tree.
 """
-
+from huggingface_hub import hf_hub_download
 import logging
 import os
 import pickle
@@ -215,6 +215,8 @@ class CombinedSliceDataset(torch.utils.data.Dataset):
             else:
                 i = i - len(dataset)
 
+def always_true(raw_sample):
+    return True
 
 class SliceDataset(torch.utils.data.Dataset):
     """
@@ -232,6 +234,8 @@ class SliceDataset(torch.utils.data.Dataset):
         dataset_cache_file: Union[str, Path, os.PathLike] = "dataset_cache.pkl",
         num_cols: Optional[Tuple[int]] = None,
         raw_sample_filter: Optional[Callable] = None,
+        repo_id: str = None,
+        max_len: int = None
     ):
         """
         Args:
@@ -259,6 +263,9 @@ class SliceDataset(torch.utils.data.Dataset):
             raw_sample_filter: Optional; A callable object that takes an raw_sample
                 metadata as input and returns a boolean indicating whether the
                 raw_sample should be included in the dataset.
+            repo_id: repo for hf if using it
+            max_len: adding a max length to cut off files for quick testing, only available with HF data
+                e.g if max_len = 3, only 3 files will be used
         """
         if challenge not in ("singlecoil", "multicoil"):
             raise ValueError('challenge should be either "singlecoil" or "multicoil"')
@@ -276,7 +283,7 @@ class SliceDataset(torch.utils.data.Dataset):
         )
         self.raw_samples = []
         if raw_sample_filter is None:
-            self.raw_sample_filter = lambda raw_sample: True
+            self.raw_sample_filter =  always_true #lambda raw_sample: True
         else:
             self.raw_sample_filter = raw_sample_filter
 
@@ -295,8 +302,41 @@ class SliceDataset(torch.utils.data.Dataset):
 
         # check if our dataset is in the cache
         # if there, use that metadata, if not, then regenerate the metadata
-        if dataset_cache.get(root) is None or not use_dataset_cache:
-            files = list(Path(root).iterdir())
+        self.repo_id = repo_id
+        self.max_len = max_len
+        if self.repo_id is None:
+            if dataset_cache.get(root) is None or not use_dataset_cache:
+                files = list(Path(root).iterdir())
+                for fname in sorted(files):
+                    metadata, num_slices = self._retrieve_metadata(fname)
+
+                    new_raw_samples = []
+                    for slice_ind in range(num_slices):
+                        raw_sample = FastMRIRawDataSample(fname, slice_ind, metadata)
+                        if self.raw_sample_filter(raw_sample):
+                            new_raw_samples.append(raw_sample)
+
+                    self.raw_samples += new_raw_samples
+
+                if dataset_cache.get(root) is None and use_dataset_cache:
+                    dataset_cache[root] = self.raw_samples
+                    logging.info(f"Saving dataset cache to {self.dataset_cache_file}.")
+                    with open(self.dataset_cache_file, "wb") as cache_f:
+                        pickle.dump(dataset_cache, cache_f)
+            else:
+                logging.info(f"Using dataset cache from {self.dataset_cache_file}.")
+                self.raw_samples = dataset_cache[root]
+
+        else:
+            txt_filepath = f'hf/knee_{root}.txt'
+            files = []
+            with open(txt_filepath, 'r') as f:
+                for line in f:
+                    fname = f'{root}/{line.strip()}'
+                    files.append(fname)
+
+            if self.max_len:
+                files = files[:self.max_len]
             for fname in sorted(files):
                 metadata, num_slices = self._retrieve_metadata(fname)
 
@@ -307,15 +347,6 @@ class SliceDataset(torch.utils.data.Dataset):
                         new_raw_samples.append(raw_sample)
 
                 self.raw_samples += new_raw_samples
-
-            if dataset_cache.get(root) is None and use_dataset_cache:
-                dataset_cache[root] = self.raw_samples
-                logging.info(f"Saving dataset cache to {self.dataset_cache_file}.")
-                with open(self.dataset_cache_file, "wb") as cache_f:
-                    pickle.dump(dataset_cache, cache_f)
-        else:
-            logging.info(f"Using dataset cache from {self.dataset_cache_file}.")
-            self.raw_samples = dataset_cache[root]
 
         # subsample if desired
         if sample_rate < 1.0:  # sample by slice
@@ -341,7 +372,13 @@ class SliceDataset(torch.utils.data.Dataset):
             ]
 
     def _retrieve_metadata(self, fname):
+        if self.repo_id is not None:
+            fname = hf_hub_download(repo_id=self.repo_id, 
+                                    filename=fname, 
+                                    repo_type="dataset")
+          
         with h5py.File(fname, "r") as hf:
+            #print(hf.keys())
             et_root = etree.fromstring(hf["ismrmrd_header"][()])
 
             enc = ["encoding", "encodedSpace", "matrixSize"]
@@ -382,6 +419,14 @@ class SliceDataset(torch.utils.data.Dataset):
     def __getitem__(self, i: int):
         fname, dataslice, metadata = self.raw_samples[i]
 
+        if self.repo_id is not None:
+            fname = hf_hub_download(repo_id=self.repo_id, 
+                                    filename=fname, 
+                                    repo_type="dataset")
+            transform_fname = Path(fname).name
+        else:
+            transform_fname = fname.name
+
         with h5py.File(fname, "r") as hf:
             kspace = hf["kspace"][dataslice]
 
@@ -392,10 +437,11 @@ class SliceDataset(torch.utils.data.Dataset):
             attrs = dict(hf.attrs)
             attrs.update(metadata)
 
+        
         if self.transform is None:
-            sample = (kspace, mask, target, attrs, fname.name, dataslice)
+            sample = (kspace, mask, target, attrs, transform_fname, dataslice)
         else:
-            sample = self.transform(kspace, mask, target, attrs, fname.name, dataslice)
+            sample = self.transform(kspace, mask, target, attrs, transform_fname, dataslice)
 
         return sample
 
