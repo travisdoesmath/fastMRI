@@ -4,6 +4,7 @@ Copyright (c) Facebook, Inc. and its affiliates.
 This source code is licensed under the MIT license found in the
 LICENSE file in the root directory of this source tree.
 """
+from huggingface_hub import hf_hub_download
 
 import argparse
 import pathlib
@@ -100,10 +101,30 @@ class Metrics:
 
 def evaluate(args, recons_key):
     metrics = Metrics(METRIC_FUNCS)
+    if args.repo_id is None:
+        pred_files = args.target_path.iterdir()
+    else:
+        txt_filepath = f'hf/knee_singlecoil_test.txt'
+        pred_files = []
+        with open(txt_filepath, 'r') as f:
+            for line in f:
+                fname = f'singlecoil_test/{line.strip()}'
+                pred_files.append(fname)
 
-    for tgt_file in args.target_path.iterdir():
+        if args.max_len:
+            pred_files = pred_files[:args.max_len]
+
+
+    for tgt_file in pred_files:
+        if args.repo_id is None:
+            tgt_file = args.target_path / tgt_file
+            recon_file = args.predictions_path / tgt_file.name
+        else:
+            tgt_file = hf_hub_download(repo_id=args.repo_id, filename=tgt_file, repo_type="dataset")
+            t_name = pathlib.Path(tgt_file).name
+            recon_file = args.predictions_path / t_name
         with h5py.File(tgt_file, "r") as target, h5py.File(
-            args.predictions_path / tgt_file.name, "r"
+            recon_file, "r"
         ) as recons:
             if args.acquisition and args.acquisition != target.attrs["acquisition"]:
                 continue
@@ -120,7 +141,7 @@ def evaluate(args, recons_key):
                 recons, (target.shape[-1], target.shape[-1])
             )
             metrics.push(target, recons)
-
+   
     return metrics
 
 
@@ -137,6 +158,18 @@ if __name__ == "__main__":
         type=pathlib.Path,
         required=True,
         help="Path to reconstructions",
+    )
+    parser.add_argument(
+        "--repo_id",
+        default=None,
+        type=str,
+        help="Repo ID to use huggingface data",
+    )
+    parser.add_argument(
+        "--max_len",
+        default=None,
+        type=int,
+        help="Maximum length of input images with hf data for quick debugging",
     )
     parser.add_argument(
         "--challenge",
