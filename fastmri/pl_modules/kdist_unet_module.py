@@ -111,9 +111,11 @@ class KDistUnetModule(MriModule):
             num_pool_layers=self.num_pool_layers,
             drop_prob=self.drop_prob,
         )
-        self.teacher_unet = teacher_unet.eval()
-        for param in self.teacher_unet.parameters():
-            param.requires_grad = False
+        
+        if teacher_unet is not None:
+            self.teacher_unet = teacher_unet.eval()
+            for param in self.teacher_unet.parameters():
+                param.requires_grad = False
 
         self.recon_loss = WeightedMSELoss()
 
@@ -131,6 +133,7 @@ class KDistUnetModule(MriModule):
                 torch.nn.Conv2d(student_channels, teacher_channels, kernel_size=1)
                 for student_channels, teacher_channels in zip(self.student_feature_channels, self.teacher_feature_channels)
             ])
+            print(self.ds_layer_distil, self.us_layer_distil)
 
     def calculate_feature_map_dims(self, model, ds_layer_distil, us_layer_distil):
         """
@@ -235,7 +238,7 @@ class KDistUnetModule(MriModule):
         self.student_features.append(output)
 
     def forward(self, image):
-        return self.student_unet(image.unsqueeze(1)).squeeze(1), self.teacher_unet(image.unsqueeze(1)).squeeze(1)
+        return self.student_unet(image.unsqueeze(1)).squeeze(1), self.teacher_unet(image.unsqueeze(1)).squeeze(1) if self.teacher_unet is not None else None
 
     def _standardize_features(self, x):
         """
@@ -289,7 +292,10 @@ class KDistUnetModule(MriModule):
         return self.recon_weight * reconstruction_loss + distillation_loss * self.kdist_weight
 
 
-    
+     # Exclude teacher_unet from saving in checkpoints
+    def on_save_checkpoint(self, checkpoint):
+        if "teacher_unet" in checkpoint["state_dict"]:
+            del checkpoint["state_dict"]["teacher_unet"]
     
     def training_step(self, batch, batch_idx):
         s_output, _ = self(batch.image)
