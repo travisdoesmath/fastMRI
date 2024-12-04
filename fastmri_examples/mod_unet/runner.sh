@@ -42,7 +42,7 @@ function display_help {
     echo "  -train-kdist              Train the modified U-Net model with knowledge distillation"
     echo " --max_len INT                 Maximum length of the input sequence, only applicable to hf for quick testing"
     echo " --max_epochs INT              Maximum number of epochs to train the model (default: 50)"
-    echo "  --help                    Display this help message and exit"
+    echo " --help                    Display this help message and exit"
     echo
     echo "Examples:"
     echo "  $0 -train-mod -eval-mod --data_path /path/to/data --challenge singlecoil"
@@ -106,6 +106,8 @@ while [ $# -gt 0 ]; do
     -train-kdist)
         echo "Train modified model with knowledge distillation flag set"
         train_kdist_flag=true;;
+    --help)
+        display_help;;
     *)
         echo "Unknown argument: $1"
         exit 1;;
