@@ -47,7 +47,7 @@ def cli_main(args):
         sample_rate=args.sample_rate,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
-        distributed_sampler=(args.accelerations in ("ddp", "ddp_cpu")),
+        distributed_sampler=(args.accelerations in ("ddp", "ddp_cpu", "cuda")),
         repo_id=args.repo_id,
         max_len=args.max_len,
     )
@@ -72,7 +72,7 @@ def cli_main(args):
     # ------------
     #trainer = pl.Trainer.from_argparse_args(args)
     #trainer = pl.Trainer(**vars(args))
-    trainer = pl.Trainer(max_epochs=args.max_epochs, logger=TensorBoardLogger("logs", name="unet-mod"))
+    trainer = pl.Trainer(max_epochs=args.max_epochs, logger=TensorBoardLogger("logs", name="unet-mod"), accelerator="gpu", devices=1)
 
     # ------------
     # run
