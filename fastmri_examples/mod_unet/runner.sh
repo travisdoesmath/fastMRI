@@ -9,6 +9,7 @@ eval_mod_model=false
 eval_pretrained_model=false
 repo_id="btoto3/fastmri-dl"
 max_len=""
+train_kdist_flag=false
 
 
 # Default parameters
@@ -38,9 +39,10 @@ function display_help {
     echo "  -full-mod                 Run the full modified model pipeline"
     echo "  -full-pretrained          Run the full pretrained model pipeline"
     echo "  -use_hf                  Use Hugging Face for data and not local"
+    echo "  -train-kdist              Train the modified U-Net model with knowledge distillation"
     echo " --max_len INT                 Maximum length of the input sequence, only applicable to hf for quick testing"
     echo " --max_epochs INT              Maximum number of epochs to train the model (default: 50)"
-    echo "  --help                    Display this help message and exit"
+    echo " --help                    Display this help message and exit"
     echo
     echo "Examples:"
     echo "  $0 -train-mod -eval-mod --data_path /path/to/data --challenge singlecoil"
@@ -101,6 +103,11 @@ while [ $# -gt 0 ]; do
     -use_hf)
         echo "Using Hugging Face Transformers library"
         use_hf_flag=true;;
+    -train-kdist)
+        echo "Train modified model with knowledge distillation flag set"
+        train_kdist_flag=true;;
+    --help)
+        display_help;;
     *)
         echo "Unknown argument: $1"
         exit 1;;
@@ -220,6 +227,27 @@ if [ "$eval_pretrained_model" = true ]; then
     fi
     if [ $? -ne 0 ]; then
         echo "Error: Evaluation of pretrained model failed."
+        exit 1
+    fi
+fi
+
+# Train Knowledge Distillation model
+if [ "$train_kdist_flag" = true ]; then
+    echo "Training modified U-Net model..."
+    if [ "$use_hf_flag" = true ]; then
+        echo "Using Hugging Face Transformers library"
+        if [ -z "$max_len" ]; then
+            python kdist_train_unet.py --challenge "$challenge" --data_path "$data_path" --mask_type "$mask_type" --repo_id "$repo_id" --max_epochs "$max_epochs"
+        else
+            echo "Using a max_len of $max_len"
+            python kdist_train_unet.py --challenge "$challenge" --data_path "$data_path" --mask_type "$mask_type" --repo_id "$repo_id" --max_len "$max_len" --max_epochs "$max_epochs"
+        fi
+       
+    else
+        python kdist_train_unet.py --challenge "$challenge" --data_path "$data_path" --mask_type "$mask_type" --max_epochs "$max_epochs"
+    fi
+    if [ $? -ne 0 ]; then
+        echo "Error: Training modified model failed."
         exit 1
     fi
 fi
