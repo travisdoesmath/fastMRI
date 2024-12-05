@@ -7,7 +7,7 @@ test_mod_flag=false
 pretrain_inference_flag=false
 eval_mod_model=false
 eval_pretrained_model=false
-repo_id="btoto3/fastmri-dl"
+repo_id="ttaylor99/fastmri-sample"
 max_len=""
 train_kdist_flag=false
 
@@ -19,7 +19,7 @@ output_path_pretrain="output_pretrain/"
 output_path_mod="output_mod/"
 mask_type="random"
 pretrain_challenge="unet_knee_sc"
-max_epochs=50
+max_epochs=10
 
 # Function to display help message
 function display_help {
@@ -179,7 +179,7 @@ if [ "$eval_mod_model" = true ]; then
             python evaluate.py --target-path "$data_path/ground_truth" --predictions-path "$output_path_mod/reconstructions" --challenge "$challenge" --repo_id "$repo_id" --max_len "$max_len"
         fi
     else
-        python evaluate.py --target-path "$data_path/singlecoil_val" --predictions-path "$output_path_mod/reconstructions" --challenge "$challenge"
+        python evaluate.py --target-path "$data_path/singlecoil_test" --predictions-path "$output_path_mod/reconstructions" --challenge "$challenge"
     fi
     
     if [ $? -ne 0 ]; then
