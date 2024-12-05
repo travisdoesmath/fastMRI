@@ -98,21 +98,21 @@ class ModUnetModule(MriModule):
         
      
         # Compute the loss
-        loss = self.loss_func(output, batch.target, weight)
+        loss = self.loss_func(output, batch.target.to('cuda'), weight)
 
         self.log("loss", loss.detach())
 
         return loss
 
     def validation_step(self, batch, batch_idx):
-        output = self(batch.image)
+        output = self(batch.image).to('cuda')
         mean = batch.mean.unsqueeze(1).unsqueeze(2)
         std = batch.std.unsqueeze(1).unsqueeze(2)
 
         weight = batched_central_weight_mask(batch.image.shape).to('cuda')
         
-        if torch.cuda.is_available():
-            weight.to('cuda')
+        #if torch.cuda.is_available():
+        #   weight.to('cuda')
 
         return {
             "batch_idx": batch_idx,
@@ -121,11 +121,11 @@ class ModUnetModule(MriModule):
             "max_value": batch.max_value,
             "output": output * std + mean,
             "target": batch.target * std + mean,
-            "val_loss":self.loss_func(output, batch.target, weight),
+            "val_loss":self.loss_func(output.to('cuda'), batch.target.to('cuda'), weight.to('cuda')),
         }
 
     def test_step(self, batch, batch_idx):
-        output = self.forward(batch.image)
+        output = self.forward(batch.image).to('cuda')
         mean = batch.mean.unsqueeze(1).unsqueeze(2)
         std = batch.std.unsqueeze(1).unsqueeze(2)
 
