@@ -92,7 +92,7 @@ def build_args():
     path_config = pathlib.Path("../../fastmri_dirs.yaml")
     num_gpus = 1
     backend = "ddp"
-    batch_size = 8 if backend == "ddp" else num_gpus
+    batch_size = 4 if backend == "ddp" else num_gpus
 
     # set defaults based on optional directory config
     data_path = fetch_dir("knee_path", path_config)
@@ -109,7 +109,7 @@ def build_args():
     parser.add_argument(
         "--repo_id",
         default=None,
-        choices=("btoto3/fastmri-dl"),
+        choices=("btoto3/fastmri-dl", "ttaylor99/fastmri-sample"),
         type=str,
         help="Operation mode",
     )
@@ -164,7 +164,7 @@ def build_args():
     parser.set_defaults(
         in_chans=1,  # number of input channels to U-Net
         out_chans=1,  # number of output chanenls to U-Net
-        chans=32,  # number of top-level U-Net channels
+        chans=128,  # number of top-level U-Net channels
         num_pool_layers=4,  # number of U-Net pooling layers
         drop_prob=0.0,  # dropout probability
         lr=0.001,  # RMSProp learning rate
