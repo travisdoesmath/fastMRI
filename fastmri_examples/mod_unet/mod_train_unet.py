@@ -90,9 +90,9 @@ def build_args():
 
     # basic args
     path_config = pathlib.Path("../../fastmri_dirs.yaml")
-    num_gpus = 2
+    num_gpus = 1
     backend = "ddp"
-    batch_size = 1 if backend == "ddp" else num_gpus
+    batch_size = 8 if backend == "ddp" else num_gpus
 
     # set defaults based on optional directory config
     data_path = fetch_dir("knee_path", path_config)
@@ -182,7 +182,7 @@ def build_args():
         seed=42,  # random seed
         deterministic=True,  # makes things slower, but deterministic
         default_root_dir=default_root_dir,  # directory for logs and checkpoints
-        max_epochs=50,  # max number of epochs
+        max_epochs=10,  # max number of epochs
     )
 
     args = parser.parse_args()
