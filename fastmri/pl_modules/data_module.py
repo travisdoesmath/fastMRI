@@ -382,7 +382,7 @@ class FastMriDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return self._create_data_loader(
-            self.test_transform, data_partition=self.test_split
+            self.test_transform, data_partition="val" #self.test_split
         )
 
     @staticmethod
