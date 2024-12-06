@@ -110,11 +110,11 @@ def evaluate(args, recons_key):
     if args.repo_id is None:
         pred_files = args.target_path.iterdir()
     else:
-        txt_filepath = f'hf/knee_singlecoil_test.txt'
+        txt_filepath = f'hf/knee_singlecoil_val.txt'
         pred_files = []
         with open(txt_filepath, 'r') as f:
             for line in f:
-                fname = f'singlecoil_test/{line.strip()}'
+                fname = f'singlecoil_val/{line.strip()}'
                 pred_files.append(fname)
 
         if args.max_len:
