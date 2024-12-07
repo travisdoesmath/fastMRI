@@ -134,6 +134,8 @@ class KDistUnetModule(MriModule):
                 for student_channels, teacher_channels in zip(self.student_feature_channels, self.teacher_feature_channels)
             ])
             print(self.ds_layer_distil, self.us_layer_distil)
+        else:
+            self.teacher_unet = None
 
     def calculate_feature_map_dims(self, model, ds_layer_distil, us_layer_distil):
         """
@@ -329,7 +331,7 @@ class KDistUnetModule(MriModule):
         }
 
     def test_step(self, batch, batch_idx):
-        output = self.forward(batch.image)
+        output, _ = self.forward(batch.image)
         mean = batch.mean.unsqueeze(1).unsqueeze(2)
         std = batch.std.unsqueeze(1).unsqueeze(2)
 
