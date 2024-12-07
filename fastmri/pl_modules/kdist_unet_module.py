@@ -6,6 +6,7 @@ LICENSE file in the root directory of this source tree.
 """
 
 from argparse import ArgumentParser
+import numpy as np
 
 import torch
 from torch.nn import functional as F
@@ -296,17 +297,24 @@ class KDistUnetModule(MriModule):
 
      # Exclude teacher_unet from saving in checkpoints
     def on_save_checkpoint(self, checkpoint):
-        if "teacher_unet" in checkpoint["state_dict"]:
-            del checkpoint["state_dict"]["teacher_unet"]
+        if "state_dict" in checkpoint:
+            keys_to_remove = [
+                key for key in checkpoint["state_dict"].keys() if "teacher_unet" in key
+            ]
+            for key in keys_to_remove:
+                del checkpoint["state_dict"][key]
+
+        super().on_save_checkpoint(checkpoint)
+
     
     def training_step(self, batch, batch_idx):
         s_output, _ = self(batch.image)
-         # Reset the feature lists to store new features
-        self.student_features = []  # Clear stored student features
-        self.teacher_features = []  # Clear stored teacher features
 
         loss = self.loss_func(batch, s_output)
         self.log("loss", loss.detach())
+         # Reset the feature lists to store new features
+        self.student_features = []  # Clear stored student features
+        self.teacher_features = []  # Clear stored teacher features
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -316,11 +324,7 @@ class KDistUnetModule(MriModule):
         mean = batch.mean.unsqueeze(1).unsqueeze(2)
         std = batch.std.unsqueeze(1).unsqueeze(2)
 
-        # Reset the feature lists to store new features
-        self.student_features = []  # Clear stored student features
-        self.teacher_features = []  # Clear stored teacher features
-
-        return {
+        results = {
             "batch_idx": batch_idx,
             "fname": batch.fname,
             "slice_num": batch.slice_num,
@@ -329,12 +333,15 @@ class KDistUnetModule(MriModule):
             "target": batch.target * std + mean,
             "val_loss":self.loss_func(batch, output),
         }
+         # Reset the feature lists to store new features
+        self.student_features = []  # Clear stored student features
+        self.teacher_features = []  # Clear stored teacher features
+        return results
 
     def test_step(self, batch, batch_idx):
         output, _ = self.forward(batch.image)
         mean = batch.mean.unsqueeze(1).unsqueeze(2)
         std = batch.std.unsqueeze(1).unsqueeze(2)
-
 
         return {
             "fname": batch.fname,
