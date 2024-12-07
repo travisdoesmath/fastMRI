@@ -470,6 +470,9 @@ class AnnotatedSliceDataset(SliceDataset):
         volume_sample_rate: Optional[float] = None,
         dataset_cache_file: Union[str, Path, os.PathLike] = "dataset_cache.pkl",
         num_cols: Optional[Tuple[int]] = None,
+        raw_sample_filter: Optional[Callable] = None,
+        repo_id: str = None,
+        max_len: int = None,
         annotation_version: Optional[str] = None,
     ):
         """
@@ -501,6 +504,7 @@ class AnnotatedSliceDataset(SliceDataset):
                 information for faster load times.
             num_cols: Optional; If provided, only slices with the desired
                 number of columns will be considered.
+            repo_id: repo for hf if using it
             annotation_version: Optional; If provided, a specific version of csv file will be downloaded based on its git hash.
                 Default value is None, then the latest version will be used.
         """
@@ -515,6 +519,9 @@ class AnnotatedSliceDataset(SliceDataset):
             volume_sample_rate,
             dataset_cache_file,
             num_cols,
+            raw_sample_filter,
+            repo_id,
+            max_len
         )
 
         annotated_raw_samples: List[FastMRIRawDataSample] = []
@@ -534,15 +541,23 @@ class AnnotatedSliceDataset(SliceDataset):
                 annotation_version, subsplit, annotation_path
             )
         annotations_csv = pd.read_csv(annotation_path)
-
+        ## DELETE ME
+        # print()
+        # print(f"{self.raw_samples[0]}")
+        # print(f"{self.raw_samples[0].fname}")
+        # print()
+        # fname, slice_ind, metadata = self.raw_samples[0]
+        # print(fname)
+        # print()
         for raw_sample in self.raw_samples:
             fname, slice_ind, metadata = raw_sample
+            # fname = Path(fname)
             metadata = deepcopy(metadata)
             maxy = metadata["recon_size"][0]
-
+            stem = fname.split("/")[-1].rsplit(".", 1)[0]
             # using filename and slice to find desired annotation
             annotations_df = annotations_csv[
-                (annotations_csv["file"] == fname.stem)
+                (annotations_csv["file"] == stem)
                 & (annotations_csv["slice"] == slice_ind)
             ]
 
