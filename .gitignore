@@ -21,3 +21,10 @@ lightning_logs/
 build/
 dist/
 fastmri/_version.py
+fastmri_examples/annotation/singlecoil_train/file1000001.h5
+fastmri_examples/annotation/singlecoil_train/file1000000.h5
+fastmri_examples/annotation/singlecoil_train/file1000002.h5
+fastmri_examples/annotation/singlecoil_train/file1000003.h5
+fastmri_examples/annotation/singlecoil_train/file1000004.h5
+fastmri_examples/annotation/singlecoil_train/file1000005.h5
+.DS_Store

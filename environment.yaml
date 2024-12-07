@@ -1,0 +1,62 @@
+name: DL_fastMRI
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  - absl-py
+  - aiohappyeyeballs
+  - aiohttp
+  - aiosignal
+  - attrs
+  - certifi
+  - charset-normalizer
+  - filelock
+  - frozenlist
+  - fsspec
+  - grpcio  # Left here to try Conda first, fallback to pip
+  - h5py
+  - idna
+  - imageio
+  - Jinja2
+  - lazy_loader
+  - lightning-utilities
+  - Markdown  # Relaxed
+  - MarkupSafe
+  - mpmath
+  - multidict
+  - networkx
+  - numpy
+  - packaging
+  - pandas
+  - pillow
+  - pip
+  - protobuf  # Fallback to pip if needed
+  - python-dateutil
+  - pytorch-lightning
+  - pytz
+  - PyYAML
+  - requests
+  - runstats
+  - scikit-image
+  - scipy
+  - setuptools
+  - six
+  - sympy
+  - tensorboard  # Tensorboard is often better via Conda
+  - tensorboard-data-server
+  - tifffile
+  - torchmetrics  # Fallback to pip if needed
+  - torchvision
+  - tqdm
+  - typing_extensions
+  - tzdata
+  - urllib3
+  - Werkzeug
+  - yarl
+  - pip:
+      - torch
+      - huggingface
+      - huggingface-hub
+      - torchmetrics
+      - protobuf

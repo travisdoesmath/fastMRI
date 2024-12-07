@@ -35,7 +35,6 @@ def cli_main(args):
     val_transform = UnetDataTransform(args.challenge, mask_func=mask)
     test_transform = UnetDataTransform(args.challenge)
     # ptl data module - this handles data loaders
-    
     data_module = FastMriDataModule(
         data_path=args.data_path,
         challenge=args.challenge,
@@ -109,7 +108,7 @@ def build_args():
     parser.add_argument(
         "--repo_id",
         default=None,
-        choices=("btoto3/fastmri-dl"),
+        choices=(["btoto3/fastmri-dl"]),
         type=str,
         help="Operation mode",
     )
@@ -214,7 +213,6 @@ def build_args():
 
 def run_cli():
     args = build_args()
-
     # ---------------------
     # RUN TRAINING
     # ---------------------
