@@ -56,14 +56,18 @@ def cli_main(args):
         repo_id=args.repo_id,
         max_len=args.max_len,
     )
+    if args.mode != "test":
+        ## -------
+        # Teacher model
+        ## -------
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        teacher_model = Unet(in_chans=1, out_chans=1, chans=256, num_pool_layers=4, drop_prob=0.0)
+        teacher_model.load_state_dict(torch.load(args.state_dict_file, weights_only=True, map_location=device))
+        teacher_model = teacher_model.eval()
+    else:
+        teacher_model = None
 
-    ## -------
-    # Teacher model
-    ## -------
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    teacher_model = Unet(in_chans=1, out_chans=1, chans=256, num_pool_layers=4, drop_prob=0.0)
-    teacher_model.load_state_dict(torch.load(args.state_dict_file, weights_only=True, map_location=device))
-    teacher_model = teacher_model.eval()
+    print(f"Teacher model: {teacher_model}")
     # ------------
     # model
     # ------------
@@ -115,7 +119,7 @@ def build_args():
     # client arguments
     parser.add_argument(
         "--mode",
-        default="train",
+        default="test",
         choices=("train", "test"),
         type=str,
         help="Operation mode",
@@ -234,7 +238,7 @@ def build_args():
 
 def run_cli():
     args = build_args()
-
+    print(args.mode)
     # ---------------------
     # RUN TRAINING
     # ---------------------

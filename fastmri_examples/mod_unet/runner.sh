@@ -1,16 +1,18 @@
 #!/bin/bash
 
-# Flags
+# Flags #"ttaylor99/fastmri-sample"
 use_hf_flag=false
 train_mod_flag=false
 test_mod_flag=false
 pretrain_inference_flag=false
 eval_mod_model=false
 eval_pretrained_model=false
-repo_id="btoto3/fastmri-dl"
+repo_id="btoto3/fastmri-dl"   
 max_len=""
 train_kdist_flag=false
+test_kdist_flag=false
 
+# echo "repo_id: $repo_id"
 
 # Default parameters
 challenge="singlecoil"
@@ -106,6 +108,10 @@ while [ $# -gt 0 ]; do
     -train-kdist)
         echo "Train modified model with knowledge distillation flag set"
         train_kdist_flag=true;;
+    -test-kdist)
+        echo "Test Knowledge dist model with knowledge distillation flag set"
+        train_kdist_flag=true;;    
+    
     --help)
         display_help;;
     *)
@@ -251,5 +257,34 @@ if [ "$train_kdist_flag" = true ]; then
         exit 1
     fi
 fi
+# Test Kdist model
+if [ "$test_kdist_flag" = true ]; then
+    echo "Testing modified U-Net model..."
+    if [ "$use_hf_flag" = true ]; then
+        echo "Using Hugging Face Transformers library"
+        if [ -z "$max_len" ]; then
+            python kdist_train_unet.py --mode test --challenge "$challenge" --data_path "$data_path" --repo_id "$repo_id"
+        else
+            echo "Using a max_len of $max_len"
+            python kdist_train_unet.py --mode test --challenge "$challenge" --data_path "$data_path" --repo_id "$repo_id" --max_len "$max_len"
+        fi
+        
+    else
+        python kdist_train_unet.py --mode test --challenge "$challenge" --data_path "$data_path"
+    fi
 
+    # Make sure output_path_mod exists
+    if [ ! -d "$output_path_mod" ]; then
+        mkdir "$output_path_mod"
+    fi
+
+    # If the directory saves in the wrong place, move it to the correct location
+    if [ -d "reconstructions" ]; then
+        mv reconstructions "$output_path_mod"
+    fi
+    if [ $? -ne 0 ]; then
+        echo "Error: Testing kdist model failed."
+        exit 1
+    fi
+fi
 echo "All requested operations completed successfully."
