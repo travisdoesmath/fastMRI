@@ -67,7 +67,7 @@ def cli_main(args):
     else:
         teacher_model = None
 
-    print(f"Teacher model: {teacher_model}")
+    #print(f"Teacher model: {teacher_model}")
     # ------------
     # model
     # ------------
@@ -84,7 +84,7 @@ def cli_main(args):
         train_mode= True if args.mode == "train" else False,
         teacher_unet=teacher_model
     )
-
+    #print(model.teacher_unet)
     # ------------
     # trainer
     # ------------
@@ -119,7 +119,7 @@ def build_args():
     # client arguments
     parser.add_argument(
         "--mode",
-        default="test",
+        default="train",
         choices=("train", "test"),
         type=str,
         help="Operation mode",
