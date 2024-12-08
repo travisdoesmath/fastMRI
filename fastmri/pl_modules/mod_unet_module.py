@@ -106,27 +106,33 @@ class ModUnetModule(MriModule):
         slice_num = batch.slice_num[0].item()
 
         # Only taking first label on the slice
-        labels_for_slice = pd_dataset[(pd_dataset['fname'] == file_name) & (pd_dataset['slice_ind'] == slice_num)]['metadata'].values.tolist()[0]
+        labels_for_slice = pd_dataset[(pd_dataset['fname'] == file_name) & (pd_dataset['slice_ind'] == slice_num)]['metadata'].values.tolist()
+        shape = batch.image.shape
         if len(labels_for_slice) > 0:
-            shape = batch.image.shape
-            _, _, _, x0, y0, w, h, label_txt = labels_for_slice['annotation'].values()
-            x1 = x0 + w
-            y1 = y0 + h
+            # Initialize the weight mask with the outer weight
             if len(shape) < 4:
                 slices, height, width = shape
             else:
                 _, slices, height, width, _ = shape
-
-            # Initialize the weight mask with the outer weight
             weight_mask = torch.full((slices, height, width), 1.0)
 
-            # Apply central weight to the central region of the batches
-            weight_mask[:, y0:y1, x0:x1] = 2.0
+            for label in labels_for_slice:
+        
+                
+                _, _, _, x0, y0, w, h, label_txt = label['annotation'].values()
+                x1 = x0 + w
+                y1 = y0 + h
+
+
+                # Apply central weight to the central region of the batches
+                weight_mask[:, y0:y1, x0:x1] = 2.0
 
             weight = weight_mask
         else:
             # Get the batched center weights for the loss
-            weight = batched_central_weight_mask(batch.image.shape)
+            weight = batched_central_weight_mask(shape)
+
+        weight.to("mps")
     
         if torch.cuda.is_available():
             weight.to('cuda')
