@@ -126,8 +126,11 @@ class KDistUnetModule(MriModule):
             self.teacher_features = []  # to store student features
             
             # Pre-calculate feature map dimensions for distillation layers (down-sampling, bottleneck, up-sampling)
-            self.student_feature_map_dims, self.student_feature_channels = self.calculate_feature_map_dims(self.student_unet, self.ds_layer_distil, self.us_layer_distil)
-            self.teacher_feature_map_dims, self.teacher_feature_channels = self.calculate_feature_map_dims(self.teacher_unet, self.ds_layer_distil, self.us_layer_distil)
+            self.student_feature_channels = [32, 512, 1]#[32, 256, 512, 256, 1]  # From the student model
+            self.teacher_feature_channels = [256, 4096, 1]#[256, 2048, 4096, 2048, 1]  # From the teacher model        
+
+            #self.student_feature_map_dims, self.student_feature_channels = self.calculate_feature_map_dims(self.student_unet, self.ds_layer_distil, self.us_layer_distil)
+            #self.teacher_feature_map_dims, self.teacher_feature_channels = self.calculate_feature_map_dims(self.teacher_unet, self.ds_layer_distil, self.us_layer_distil)
 
         # Initialize projection layers using pre-calculated dimensions
             self.projection_layers = torch.nn.ModuleList([
@@ -138,63 +141,64 @@ class KDistUnetModule(MriModule):
         else:
             self.teacher_unet = None
 
-    def calculate_feature_map_dims(self, model, ds_layer_distil, us_layer_distil):
-        """
-        Pre-calculate the dimensions of the feature maps at specified layers for distillation.
-        Args:
-            model (nn.Module): The model (teacher or student).
-            ds_layer_distil (list[int]): Indices of the down-sampling layers to consider.
-            us_layer_distil (list[int]): Indices of the up-sampling layers to consider.
-        Returns:
-            Tuple of feature map dimensions for teacher or student model at each layer.
-        """
-        H, W = 320, 320  # Input Size is 320x320
-        feature_map_dims = []
-        feature_channels = []
+    # def calculate_feature_map_dims(self, model, ds_layer_distil, us_layer_distil):
+    #     """
+    #     Pre-calculate the dimensions of the feature maps at specified layers for distillation.
+    #     Args:
+    #         model (nn.Module): The model (teacher or student).
+    #         ds_layer_distil (list[int]): Indices of the down-sampling layers to consider.
+    #         us_layer_distil (list[int]): Indices of the up-sampling layers to consider.
+    #     Returns:
+    #         Tuple of feature map dimensions for teacher or student model at each layer.
+    #     """
+    #     H, W = 320, 320  # Input Size is 320x320
+    #     feature_map_dims = []
+    #     feature_channels = []
 
-        # Calculate dimensions for down-sampling layers
-        current_channels = self.in_chans
-        for idx in ds_layer_distil:
-            layer = model.down_sample_layers[idx]
-            H = (H - 1) // 2 + 1  # Pooling halving the height
-            W = (W - 1) // 2 + 1  # Pooling halving the width
-            feature_map_dims.append((current_channels, H, W))
-            feature_channels.append(current_channels)
-            current_channels *= 2  # Channels double after each down-sampling layer
+    #     # Calculate dimensions for down-sampling layers
+    #     current_channels = self.in_chans
+    #     for idx in ds_layer_distil:
+    #         layer = model.down_sample_layers[idx]
+    #         H = (H - 1) // 2 + 1  # Pooling halving the height
+    #         W = (W - 1) // 2 + 1  # Pooling halving the width
+    #         feature_map_dims.append((current_channels, H, W))
+    #         feature_channels.append(current_channels)
+    #         current_channels *= 2  # Channels double after each down-sampling layer
 
-        # Calculate dimensions for bottleneck
-        bottleneck_layer = model.conv
-        H = (H - 1) // 2 + 1  # Final ConvBlock layer's height
-        W = (W - 1) // 2 + 1  # Final ConvBlock layer's width
-        feature_map_dims.append((current_channels, H, W))
-        feature_channels.append(current_channels)
+    #     # Calculate dimensions for bottleneck
+    #     bottleneck_layer = model.conv
+    #     H = (H - 1) // 2 + 1  # Final ConvBlock layer's height
+    #     W = (W - 1) // 2 + 1  # Final ConvBlock layer's width
+    #     feature_map_dims.append((current_channels, H, W))
+    #     feature_channels.append(current_channels)
 
-        # Calculate dimensions for up-sampling layers
-        for idx in us_layer_distil:
-            layer = model.up_conv[idx]
-            H = (H - 1) // 2 + 1  # Upsample halving the height
-            W = (W - 1) // 2 + 1  # Upsample halving the width
-            feature_map_dims.append((current_channels, H, W))
-            feature_channels.append(current_channels)
-            current_channels //= 2  # Channels halve after each up-sampling layer
+    #     # Calculate dimensions for up-sampling layers
+    #     for idx in us_layer_distil:
+    #         layer = model.up_conv[idx]
+    #         H = (H - 1) // 2 + 1  # Upsample halving the height
+    #         W = (W - 1) // 2 + 1  # Upsample halving the width
+    #         feature_map_dims.append((current_channels, H, W))
+    #         feature_channels.append(current_channels)
+    #         current_channels //= 2  # Channels halve after each up-sampling layer
 
-        return feature_map_dims, feature_channels
+    #     return feature_map_dims, feature_channels
 
 
     def _init_layer_distil(self, ds_layer_distil, us_layer_distil):
         """
         Initialize the layers selected for distillation.
         """
-        def _index_choices(block):
-            block_len = len(block)
-            if block_len <= 4:
-                return [0, block_len-1]
-            else:
-                return [0, block_len//2, block_len-1]
+        # def _index_choices(block):
+            # block_len = len(block)
+            # if block_len <= 4:
+            #     return [0, block_len-1]
+            # else:
+            #     return [0, block_len//2, block_len-1]
+            
 
         # Set default layers for distillation if not provided
-        self.ds_layer_distil = ds_layer_distil or _index_choices(self.teacher_unet.down_sample_layers)
-        self.us_layer_distil = us_layer_distil or _index_choices(self.teacher_unet.up_conv)
+        self.ds_layer_distil = ds_layer_distil or [0] #_index_choices(self.teacher_unet.down_sample_layers)
+        self.us_layer_distil = us_layer_distil or [len(self.teacher_unet.up_conv)-1] #_index_choices(self.teacher_unet.up_conv)
 
         # Register hooks for the teacher and student networks
         self._register_hooks()
@@ -261,6 +265,7 @@ class KDistUnetModule(MriModule):
         """
         Compute the distillation loss between the teacher and student features.
         """
+        
         distil_loss = 0.0
         for teacher_feature, student_feature, projection in zip(self.teacher_features, self.student_features, self.projection_layers):
            # Standardize features
@@ -309,7 +314,7 @@ class KDistUnetModule(MriModule):
     
     def training_step(self, batch, batch_idx):
         s_output, _ = self(batch.image)
-
+       
         loss = self.loss_func(batch, s_output)
         self.log("loss", loss.detach())
          # Reset the feature lists to store new features
