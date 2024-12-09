@@ -100,13 +100,16 @@ class ModUnetModule(MriModule):
         datamodule = self.trainer.datamodule
         train_dataloader = datamodule.train_dataloader()
         dataset = train_dataloader.dataset  # This will be an instance of AnnotatedSliceDataset
-        pd_dataset = pd.DataFrame(dataset.raw_samples)
+        raw_samples = dataset.raw_samples
 
         file_name = "singlecoil_train/"+ batch.fname[0]
         slice_num = batch.slice_num[0].item()
 
-        # Only taking first label on the slice
-        labels_for_slice = pd_dataset[(pd_dataset['fname'] == file_name) & (pd_dataset['slice_ind'] == slice_num)]['metadata'].values.tolist()
+        # Filter raw_samples directly to find matching samples
+        labels_for_slice = [
+            sample.metadata for sample in raw_samples
+            if str(sample.fname) == file_name and sample.slice_ind == slice_num
+        ]
         shape = batch.image.shape
         if len(labels_for_slice) > 0:
             # Initialize the weight mask with the outer weight
@@ -116,7 +119,8 @@ class ModUnetModule(MriModule):
                 _, slices, height, width, _ = shape
             
             weight_mask = torch.full((slices, height, width), 1.0)
-
+            if len(labels_for_slice) > 1:
+                print(file_name, slice_num)
             for label in labels_for_slice:
             # label = labels_for_slice[0]
                 
