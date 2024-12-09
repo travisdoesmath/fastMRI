@@ -114,15 +114,15 @@ class ModUnetModule(MriModule):
                 slices, height, width = shape
             else:
                 _, slices, height, width, _ = shape
+            
             weight_mask = torch.full((slices, height, width), 1.0)
 
             for label in labels_for_slice:
-        
+            # label = labels_for_slice[0]
                 
                 _, _, _, x0, y0, w, h, label_txt = label['annotation'].values()
                 x1 = x0 + w
                 y1 = y0 + h
-
 
                 # Apply central weight to the central region of the batches
                 weight_mask[:, y0:y1, x0:x1] = 2.0
@@ -132,7 +132,7 @@ class ModUnetModule(MriModule):
             # Get the batched center weights for the loss
             weight = batched_central_weight_mask(shape)
 
-        weight.to("mps")
+        # weight.to("mps")
     
         if torch.cuda.is_available():
             weight.to('cuda')
