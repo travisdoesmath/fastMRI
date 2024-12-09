@@ -260,6 +260,8 @@ class FastMriDataModule(pl.LightningDataModule):
 
                 dataset = AnnotatedSliceDataset(
                     root=data_path,
+                    subsplit="knee",
+                    multiple_annotation_policy="all",
                     transform=data_transform,
                     sample_rate=sample_rate,
                     volume_sample_rate=volume_sample_rate,
