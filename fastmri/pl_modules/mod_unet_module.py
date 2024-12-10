@@ -6,7 +6,7 @@ LICENSE file in the root directory of this source tree.
 """
 
 from argparse import ArgumentParser
-from pathlib import Path
+from collections import defaultdict
 
 import torch
 import pandas as pd
@@ -16,7 +16,6 @@ from fastmri.models import Unet
 
 from fastmri.pl_modules import MriModule
 from fastmri.data.transforms import batched_central_weight_mask
-from fastmri.data.mri_data import AnnotatedSliceDataset
 
 class WeightedMSELoss(torch.nn.Module):
     def __init__(self):
@@ -106,10 +105,19 @@ class ModUnetModule(MriModule):
         slice_num = batch.slice_num[0].item()
 
         # Filter raw_samples directly to find matching samples
-        labels_for_slice = [
-            sample.metadata for sample in raw_samples
-            if str(sample.fname) == file_name and sample.slice_ind == slice_num
-        ]
+        # labels_for_slice = [
+        #     sample.metadata for sample in raw_samples
+        #     if str(sample.fname) == file_name and sample.slice_ind == slice_num
+        # ]
+        
+        # Pre-index raw_samples
+        sample_lookup = defaultdict(list)
+        for sample in raw_samples:
+            sample_lookup[(str(sample.fname), sample.slice_ind)].append(sample.metadata)
+
+        # Retrieve all labels for the given file_name and slice_num
+        labels_for_slice = sample_lookup.get((file_name, slice_num), [])
+        # print(labels_for_slice)
         shape = batch.image.shape
         if len(labels_for_slice) > 0:
             # Initialize the weight mask with the outer weight
@@ -119,11 +127,7 @@ class ModUnetModule(MriModule):
                 _, slices, height, width, _ = shape
             
             weight_mask = torch.full((slices, height, width), 1.0)
-            if len(labels_for_slice) > 1:
-                print(file_name, slice_num)
-            for label in labels_for_slice:
-            # label = labels_for_slice[0]
-                
+            for label in labels_for_slice:    
                 _, _, _, x0, y0, w, h, label_txt = label['annotation'].values()
                 x1 = x0 + w
                 y1 = y0 + h
