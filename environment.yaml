@@ -1,4 +1,4 @@
-name: DL_fastMRI
+name: DL_fastmri
 channels:
   - conda-forge
   - pytorch
@@ -33,7 +33,7 @@ dependencies:
   - pip
   - protobuf  # Fallback to pip if needed
   - python-dateutil
-  - pytorch-lightning
+  - pytorch-lightning==1.9.0
   - pytz
   - PyYAML
   - requests

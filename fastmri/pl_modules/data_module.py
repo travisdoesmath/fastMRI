@@ -13,7 +13,7 @@ import pytorch_lightning as pl
 import torch
 
 import fastmri
-from fastmri.data import CombinedSliceDataset, SliceDataset
+from fastmri.data import CombinedSliceDataset
 from fastmri.data.mri_data import AnnotatedSliceDataset
 
 
