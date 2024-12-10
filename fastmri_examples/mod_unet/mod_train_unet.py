@@ -20,6 +20,7 @@ from pathlib import Path
 from pytorch_lightning.loggers import TensorBoardLogger
 
 
+
 def cli_main(args):
     pl.seed_everything(args.seed)
 

@@ -541,17 +541,9 @@ class AnnotatedSliceDataset(SliceDataset):
                 annotation_version, subsplit, annotation_path
             )
         annotations_csv = pd.read_csv(annotation_path)
-        ## DELETE ME
-        # print()
-        # print(f"{self.raw_samples[0]}")
-        # print(f"{self.raw_samples[0].fname}")
-        # print()
-        # fname, slice_ind, metadata = self.raw_samples[0]
-        # print(fname)
-        # print()
         for raw_sample in self.raw_samples:
             fname, slice_ind, metadata = raw_sample
-            # fname = Path(fname)
+            fname = str(fname)
             metadata = deepcopy(metadata)
             maxy = metadata["recon_size"][0]
             stem = fname.split("/")[-1].rsplit(".", 1)[0]
